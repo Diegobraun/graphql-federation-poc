@@ -1,0 +1,32 @@
+query DetalheEmprestimo($id: ID!) {
+  emprestimo(id: $id) {
+    contrato
+    status
+    valorContratado
+    taxaJurosMensal
+    taxaJurosAnual
+    parcelasPagas
+    quantidadeParcelas
+    saldoDevedor
+    produto {
+      nome
+      indexador
+    }
+    cliente {
+      nome
+      email
+    }
+    contaDebito {
+      agencia
+      numero
+      saldo {
+        disponivel
+      }
+    }
+    parcelas(status: EM_ABERTO) {
+      numero
+      vencimento
+      valor
+    }
+  }
+}

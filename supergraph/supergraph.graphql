@@ -1,0 +1,488 @@
+schema
+  @link(url: "https://specs.apollo.dev/link/v1.0")
+  @link(url: "https://specs.apollo.dev/join/v0.5", for: EXECUTION)
+  @link(url: "https://specs.apollo.dev/inaccessible/v0.2", for: SECURITY)
+{
+  query: Query
+}
+
+directive @inaccessible on FIELD_DEFINITION | OBJECT | INTERFACE | UNION | ARGUMENT_DEFINITION | SCALAR | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION
+
+directive @join__directive(graphs: [join__Graph!], name: String!, args: join__DirectiveArguments) repeatable on SCHEMA | OBJECT | INTERFACE | FIELD_DEFINITION
+
+directive @join__enumValue(graph: join__Graph!) repeatable on ENUM_VALUE
+
+directive @join__field(graph: join__Graph, requires: join__FieldSet, provides: join__FieldSet, type: String, external: Boolean, override: String, usedOverridden: Boolean, overrideLabel: String, contextArguments: [join__ContextArgument!]) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+directive @join__graph(name: String!, url: String!) on ENUM_VALUE
+
+directive @join__implements(graph: join__Graph!, interface: String!) repeatable on OBJECT | INTERFACE
+
+directive @join__type(graph: join__Graph!, key: join__FieldSet, extension: Boolean! = false, resolvable: Boolean! = true, isInterfaceObject: Boolean! = false) repeatable on OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT | SCALAR
+
+directive @join__unionMember(graph: join__Graph!, member: String!) repeatable on UNION
+
+directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA
+
+type Alocacao
+  @join__type(graph: INVESTIMENTOS)
+{
+  tipo: TipoInvestimento!
+  valor: Decimal!
+  percentual: Decimal!
+}
+
+type Carteira
+  @join__type(graph: INVESTIMENTOS)
+{
+  totalAplicado: Decimal!
+  patrimonioBruto: Decimal!
+  rendimentoBruto: Decimal!
+  patrimonioLiquido: Decimal!
+  rentabilidadePercentual: Decimal!
+  quantidadeAtivos: Int!
+  alocacao: [Alocacao!]!
+}
+
+enum CategoriaLancamento
+  @join__type(graph: CONTAS)
+{
+  SALARIO @join__enumValue(graph: CONTAS)
+  PIX_RECEBIDO @join__enumValue(graph: CONTAS)
+  PIX_ENVIADO @join__enumValue(graph: CONTAS)
+  COMPRA_DEBITO @join__enumValue(graph: CONTAS)
+  BOLETO @join__enumValue(graph: CONTAS)
+  TARIFA @join__enumValue(graph: CONTAS)
+  RENDIMENTO @join__enumValue(graph: CONTAS)
+  PARCELA_EMPRESTIMO @join__enumValue(graph: CONTAS)
+}
+
+enum CategoriaProduto
+  @join__type(graph: PRODUTOS)
+{
+  CONTA @join__enumValue(graph: PRODUTOS)
+  EMPRESTIMO @join__enumValue(graph: PRODUTOS)
+  INVESTIMENTO @join__enumValue(graph: PRODUTOS)
+}
+
+"""
+Cliente pessoa física. Subgraph dono da entidade: define a chave e os dados cadastrais.
+Contas, empréstimos e investimentos estendem este tipo nos próprios subgraphs.
+"""
+type Cliente
+  @join__type(graph: CLIENTES, key: "id")
+  @join__type(graph: CONTAS, key: "id")
+  @join__type(graph: EMPRESTIMOS, key: "id")
+  @join__type(graph: INVESTIMENTOS, key: "id")
+{
+  id: ID!
+  nome: String! @join__field(graph: CLIENTES)
+  cpf: String! @join__field(graph: CLIENTES)
+  email: String! @join__field(graph: CLIENTES)
+  telefone: String @join__field(graph: CLIENTES)
+  dataNascimento: Date! @join__field(graph: CLIENTES)
+  idade: Int! @join__field(graph: CLIENTES)
+  segmento: Segmento! @join__field(graph: CLIENTES)
+  rendaMensal: Decimal! @join__field(graph: CLIENTES) @join__field(graph: EMPRESTIMOS, external: true)
+
+  """
+  Uso interno da federação (@requires em empréstimos). Não aparece na API pública.
+  """
+  scoreCredito: Int! @inaccessible @join__field(graph: CLIENTES) @join__field(graph: EMPRESTIMOS, external: true)
+  endereco: Endereco! @join__field(graph: CLIENTES)
+  clienteDesde: Date! @join__field(graph: CLIENTES)
+  contas(status: StatusConta): [Conta!]! @join__field(graph: CONTAS)
+  saldoTotalEmContas: Decimal! @join__field(graph: CONTAS)
+  emprestimos(status: StatusEmprestimo): [Emprestimo!]! @join__field(graph: EMPRESTIMOS)
+
+  """
+  Oferta pré-aprovada calculada com renda e score vindos do subgraph clientes
+  """
+  ofertaCredito: OfertaCredito! @join__field(graph: EMPRESTIMOS, requires: "rendaMensal scoreCredito")
+
+  """
+  Percentual da renda mensal comprometido com parcelas de empréstimos ativos
+  """
+  comprometimentoRenda: Decimal! @join__field(graph: EMPRESTIMOS, requires: "rendaMensal")
+  investimentos(tipo: TipoInvestimento): [Investimento!]! @join__field(graph: INVESTIMENTOS)
+  carteira: Carteira! @join__field(graph: INVESTIMENTOS)
+}
+
+type ClienteConnection
+  @join__type(graph: CLIENTES)
+{
+  edges: [ClienteEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type ClienteEdge
+  @join__type(graph: CLIENTES)
+{
+  cursor: String!
+  node: Cliente!
+}
+
+"""Conta corrente ou poupança. Subgraph dono: contas."""
+type Conta
+  @join__type(graph: CONTAS, key: "id")
+  @join__type(graph: EMPRESTIMOS, key: "id", resolvable: false)
+{
+  id: ID!
+  agencia: String! @join__field(graph: CONTAS)
+  numero: String! @join__field(graph: CONTAS)
+  tipo: TipoConta! @join__field(graph: CONTAS)
+  status: StatusConta! @join__field(graph: CONTAS)
+  saldo: Saldo! @join__field(graph: CONTAS)
+  limiteChequeEspecial: Decimal! @join__field(graph: CONTAS)
+  dataAbertura: Date! @join__field(graph: CONTAS)
+  titular: Cliente! @join__field(graph: CONTAS)
+  produto: Produto! @join__field(graph: CONTAS)
+
+  """
+  Extrato paginado por cursor, do lançamento mais recente para o mais antigo
+  """
+  extrato(inicio: Date, fim: Date, tipo: TipoLancamento, first: Int = 20, after: String): LancamentoConnection! @join__field(graph: CONTAS)
+}
+
+scalar Date
+  @join__type(graph: CLIENTES)
+  @join__type(graph: CONTAS)
+  @join__type(graph: EMPRESTIMOS)
+  @join__type(graph: INVESTIMENTOS)
+
+scalar DateTime
+  @join__type(graph: CONTAS)
+
+scalar Decimal
+  @join__type(graph: CLIENTES)
+  @join__type(graph: CONTAS)
+  @join__type(graph: EMPRESTIMOS)
+  @join__type(graph: INVESTIMENTOS)
+  @join__type(graph: PRODUTOS)
+
+"""Contrato de empréstimo. Subgraph dono: emprestimos."""
+type Emprestimo
+  @join__type(graph: EMPRESTIMOS, key: "id")
+{
+  id: ID!
+  contrato: String!
+  status: StatusEmprestimo!
+  valorContratado: Decimal!
+  taxaJurosMensal: Decimal!
+  taxaJurosAnual: Decimal!
+  quantidadeParcelas: Int!
+  valorParcela: Decimal!
+  dataContratacao: Date!
+  saldoDevedor: Decimal!
+  parcelasPagas: Int!
+  proximaParcela: Parcela
+  parcelas(status: StatusParcela): [Parcela!]!
+  cliente: Cliente!
+  contaDebito: Conta!
+  produto: Produto!
+}
+
+type Endereco
+  @join__type(graph: CLIENTES)
+{
+  logradouro: String!
+  numero: String!
+  complemento: String
+  bairro: String!
+  cidade: String!
+  uf: String!
+  cep: String!
+}
+
+input FiltroClientes
+  @join__type(graph: CLIENTES)
+{
+  nome: String
+  segmento: Segmento
+  uf: String
+}
+
+enum Indexador
+  @join__type(graph: PRODUTOS)
+{
+  PRE @join__enumValue(graph: PRODUTOS)
+  CDI @join__enumValue(graph: PRODUTOS)
+  IPCA @join__enumValue(graph: PRODUTOS)
+  SELIC @join__enumValue(graph: PRODUTOS)
+}
+
+"""
+Posição de investimento. Subgraph dono: investimentos. Valores marcados a mercado na data de hoje.
+"""
+type Investimento
+  @join__type(graph: INVESTIMENTOS, key: "id")
+{
+  id: ID!
+  tipo: TipoInvestimento!
+  valorAplicado: Decimal!
+  valorAtual: Decimal!
+  rendimentoBruto: Decimal!
+  rentabilidadePercentual: Decimal!
+  aliquotaIR: Decimal!
+  impostoEstimado: Decimal!
+  valorLiquido: Decimal!
+
+  """Percentual do indexador contratado (ex.: 112 = 112% do CDI)"""
+  percentualIndexador: Decimal!
+  dataAplicacao: Date!
+  dataVencimento: Date
+  liquidezDiaria: Boolean!
+  produto: Produto!
+  cliente: Cliente!
+}
+
+input join__ContextArgument {
+  name: String!
+  type: String!
+  context: String!
+  selection: join__FieldValue!
+}
+
+scalar join__DirectiveArguments
+
+scalar join__FieldSet
+
+scalar join__FieldValue
+
+enum join__Graph {
+  CLIENTES @join__graph(name: "clientes", url: "http://clientes-service:9101/graphql")
+  CONTAS @join__graph(name: "contas", url: "http://contas-service:9102/graphql")
+  EMPRESTIMOS @join__graph(name: "emprestimos", url: "http://emprestimos-service:9103/graphql")
+  INVESTIMENTOS @join__graph(name: "investimentos", url: "http://investimentos-service:9104/graphql")
+  PRODUTOS @join__graph(name: "produtos", url: "http://produtos-service:9105/graphql")
+}
+
+type Lancamento
+  @join__type(graph: CONTAS)
+{
+  id: ID!
+  dataHora: DateTime!
+  descricao: String!
+  valor: Decimal!
+  tipo: TipoLancamento!
+  categoria: CategoriaLancamento!
+}
+
+type LancamentoConnection
+  @join__type(graph: CONTAS)
+{
+  edges: [LancamentoEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type LancamentoEdge
+  @join__type(graph: CONTAS)
+{
+  cursor: String!
+  node: Lancamento!
+}
+
+scalar link__Import
+
+enum link__Purpose {
+  """
+  `SECURITY` features provide metadata necessary to securely resolve fields.
+  """
+  SECURITY
+
+  """
+  `EXECUTION` features provide metadata necessary for operation execution.
+  """
+  EXECUTION
+}
+
+type OfertaCredito
+  @join__type(graph: EMPRESTIMOS)
+{
+  limitePreAprovado: Decimal!
+  taxaJurosMensal: Decimal!
+  prazoMaximoMeses: Int!
+  motivo: String!
+  produto: Produto!
+}
+
+type PageInfo
+  @join__type(graph: CLIENTES)
+  @join__type(graph: CONTAS)
+{
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+type Parcela
+  @join__type(graph: EMPRESTIMOS)
+{
+  numero: Int!
+  vencimento: Date!
+  valor: Decimal!
+  amortizacao: Decimal!
+  juros: Decimal!
+  status: StatusParcela!
+  dataPagamento: Date
+  diasEmAtraso: Int!
+}
+
+enum Periodicidade
+  @join__type(graph: PRODUTOS)
+{
+  UNICA @join__enumValue(graph: PRODUTOS)
+  MENSAL @join__enumValue(graph: PRODUTOS)
+  ANUAL @join__enumValue(graph: PRODUTOS)
+}
+
+"""
+Produto financeiro do catálogo. Fonte da verdade de nome, categoria e condições comerciais.
+Outros subgraphs referenciam o produto apenas pelo `codigo`.
+"""
+type Produto
+  @join__type(graph: CONTAS, key: "codigo", resolvable: false)
+  @join__type(graph: EMPRESTIMOS, key: "codigo")
+  @join__type(graph: INVESTIMENTOS, key: "codigo")
+  @join__type(graph: PRODUTOS, key: "codigo")
+{
+  codigo: ID!
+
+  """Somente backoffice"""
+  contratosAtivos: Int @join__field(graph: EMPRESTIMOS)
+
+  """Somente backoffice"""
+  volumeAplicado: Decimal @join__field(graph: INVESTIMENTOS)
+  nome: String! @join__field(graph: PRODUTOS)
+  categoria: CategoriaProduto! @join__field(graph: PRODUTOS)
+  descricao: String! @join__field(graph: PRODUTOS)
+  indexador: Indexador @join__field(graph: PRODUTOS)
+
+  """
+  Taxa de referência: % a.m. para empréstimos, % do indexador para investimentos
+  """
+  taxaReferencia: Decimal @join__field(graph: PRODUTOS)
+  prazoMinimoMeses: Int @join__field(graph: PRODUTOS)
+  prazoMaximoMeses: Int @join__field(graph: PRODUTOS)
+  valorMinimo: Decimal @join__field(graph: PRODUTOS)
+  ativo: Boolean! @join__field(graph: PRODUTOS)
+  tarifas: [Tarifa!]! @join__field(graph: PRODUTOS)
+}
+
+type Query
+  @join__type(graph: CLIENTES)
+  @join__type(graph: CONTAS)
+  @join__type(graph: EMPRESTIMOS)
+  @join__type(graph: INVESTIMENTOS)
+  @join__type(graph: PRODUTOS)
+{
+  """Cliente dono do token (claim sub)"""
+  me: Cliente @join__field(graph: CLIENTES)
+  cliente(id: ID!): Cliente @join__field(graph: CLIENTES)
+
+  """Somente backoffice"""
+  clientes(filtro: FiltroClientes, first: Int = 10, after: String): ClienteConnection! @join__field(graph: CLIENTES)
+  conta(id: ID!): Conta @join__field(graph: CONTAS)
+  emprestimo(id: ID!): Emprestimo @join__field(graph: EMPRESTIMOS)
+  simularEmprestimo(input: SimulacaoInput!): Simulacao! @join__field(graph: EMPRESTIMOS)
+  investimento(id: ID!): Investimento @join__field(graph: INVESTIMENTOS)
+  produtos(categoria: CategoriaProduto, somenteAtivos: Boolean = true): [Produto!]! @join__field(graph: PRODUTOS)
+  produto(codigo: ID!): Produto @join__field(graph: PRODUTOS)
+}
+
+type Saldo
+  @join__type(graph: CONTAS)
+{
+  disponivel: Decimal!
+  bloqueado: Decimal!
+  total: Decimal!
+  disponivelComLimite: Decimal!
+}
+
+enum Segmento
+  @join__type(graph: CLIENTES)
+{
+  VAREJO @join__enumValue(graph: CLIENTES)
+  ALTA_RENDA @join__enumValue(graph: CLIENTES)
+  PRIVATE @join__enumValue(graph: CLIENTES)
+}
+
+type Simulacao
+  @join__type(graph: EMPRESTIMOS)
+{
+  produto: Produto!
+  valorSolicitado: Decimal!
+  quantidadeParcelas: Int!
+  taxaJurosMensal: Decimal!
+  valorParcela: Decimal!
+  totalPago: Decimal!
+  totalJuros: Decimal!
+  cetAnual: Decimal!
+  parcelas: [Parcela!]!
+}
+
+input SimulacaoInput
+  @join__type(graph: EMPRESTIMOS)
+{
+  produtoCodigo: ID!
+  valor: Decimal!
+  quantidadeParcelas: Int!
+}
+
+enum StatusConta
+  @join__type(graph: CONTAS)
+{
+  ATIVA @join__enumValue(graph: CONTAS)
+  BLOQUEADA @join__enumValue(graph: CONTAS)
+  ENCERRADA @join__enumValue(graph: CONTAS)
+}
+
+enum StatusEmprestimo
+  @join__type(graph: EMPRESTIMOS)
+{
+  ATIVO @join__enumValue(graph: EMPRESTIMOS)
+  QUITADO @join__enumValue(graph: EMPRESTIMOS)
+  INADIMPLENTE @join__enumValue(graph: EMPRESTIMOS)
+}
+
+enum StatusParcela
+  @join__type(graph: EMPRESTIMOS)
+{
+  PAGA @join__enumValue(graph: EMPRESTIMOS)
+  EM_ABERTO @join__enumValue(graph: EMPRESTIMOS)
+  ATRASADA @join__enumValue(graph: EMPRESTIMOS)
+}
+
+type Tarifa
+  @join__type(graph: PRODUTOS)
+{
+  nome: String!
+  valor: Decimal!
+  periodicidade: Periodicidade!
+}
+
+enum TipoConta
+  @join__type(graph: CONTAS)
+{
+  CORRENTE @join__enumValue(graph: CONTAS)
+  POUPANCA @join__enumValue(graph: CONTAS)
+}
+
+enum TipoInvestimento
+  @join__type(graph: INVESTIMENTOS)
+{
+  CDB @join__enumValue(graph: INVESTIMENTOS)
+  LCI @join__enumValue(graph: INVESTIMENTOS)
+  TESOURO @join__enumValue(graph: INVESTIMENTOS)
+  FUNDO @join__enumValue(graph: INVESTIMENTOS)
+}
+
+enum TipoLancamento
+  @join__type(graph: CONTAS)
+{
+  CREDITO @join__enumValue(graph: CONTAS)
+  DEBITO @join__enumValue(graph: CONTAS)
+}

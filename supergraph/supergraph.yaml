@@ -1,0 +1,22 @@
+federation_version: =2.11.2
+subgraphs:
+  clientes:
+    routing_url: http://clientes-service:9101/graphql
+    schema:
+      file: ../clientes-service/src/main/resources/graphql/schema.graphqls
+  contas:
+    routing_url: http://contas-service:9102/graphql
+    schema:
+      file: ../contas-service/src/main/resources/graphql/schema.graphqls
+  emprestimos:
+    routing_url: http://emprestimos-service:9103/graphql
+    schema:
+      file: ../emprestimos-service/src/main/resources/graphql/schema.graphqls
+  investimentos:
+    routing_url: http://investimentos-service:9104/graphql
+    schema:
+      file: ../investimentos-service/src/main/resources/graphql/schema.graphqls
+  produtos:
+    routing_url: http://produtos-service:9105/graphql
+    schema:
+      file: ../produtos-service/src/main/resources/graphql/schema.graphqls

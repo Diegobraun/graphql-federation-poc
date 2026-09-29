@@ -1,0 +1,73 @@
+extend schema
+  @link(url: "https://specs.apollo.dev/federation/v2.9", import: ["@key", "@shareable", "@inaccessible"])
+
+scalar Decimal
+scalar Date
+
+"""
+Cliente pessoa física. Subgraph dono da entidade: define a chave e os dados cadastrais.
+Contas, empréstimos e investimentos estendem este tipo nos próprios subgraphs.
+"""
+type Cliente @key(fields: "id") {
+  id: ID!
+  nome: String!
+  cpf: String!
+  email: String!
+  telefone: String
+  dataNascimento: Date!
+  idade: Int!
+  segmento: Segmento!
+  rendaMensal: Decimal!
+  "Uso interno da federação (@requires em empréstimos). Não aparece na API pública."
+  scoreCredito: Int! @inaccessible
+  endereco: Endereco!
+  clienteDesde: Date!
+}
+
+type Endereco {
+  logradouro: String!
+  numero: String!
+  complemento: String
+  bairro: String!
+  cidade: String!
+  uf: String!
+  cep: String!
+}
+
+enum Segmento {
+  VAREJO
+  ALTA_RENDA
+  PRIVATE
+}
+
+input FiltroClientes {
+  nome: String
+  segmento: Segmento
+  uf: String
+}
+
+type ClienteConnection {
+  edges: [ClienteEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type ClienteEdge {
+  cursor: String!
+  node: Cliente!
+}
+
+type PageInfo @shareable {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+type Query {
+  "Cliente dono do token (claim sub)"
+  me: Cliente
+  cliente(id: ID!): Cliente
+  "Somente backoffice"
+  clientes(filtro: FiltroClientes, first: Int = 10, after: String): ClienteConnection!
+}

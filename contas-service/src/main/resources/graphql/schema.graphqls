@@ -1,0 +1,97 @@
+extend schema
+  @link(url: "https://specs.apollo.dev/federation/v2.9", import: ["@key", "@shareable"])
+
+scalar Decimal
+scalar Date
+scalar DateTime
+
+"Conta corrente ou poupança. Subgraph dono: contas."
+type Conta @key(fields: "id") {
+  id: ID!
+  agencia: String!
+  numero: String!
+  tipo: TipoConta!
+  status: StatusConta!
+  saldo: Saldo!
+  limiteChequeEspecial: Decimal!
+  dataAbertura: Date!
+  titular: Cliente!
+  produto: Produto!
+  "Extrato paginado por cursor, do lançamento mais recente para o mais antigo"
+  extrato(inicio: Date, fim: Date, tipo: TipoLancamento, first: Int = 20, after: String): LancamentoConnection!
+}
+
+type Saldo {
+  disponivel: Decimal!
+  bloqueado: Decimal!
+  total: Decimal!
+  disponivelComLimite: Decimal!
+}
+
+type Lancamento {
+  id: ID!
+  dataHora: DateTime!
+  descricao: String!
+  valor: Decimal!
+  tipo: TipoLancamento!
+  categoria: CategoriaLancamento!
+}
+
+type LancamentoConnection {
+  edges: [LancamentoEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type LancamentoEdge {
+  cursor: String!
+  node: Lancamento!
+}
+
+type PageInfo @shareable {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+enum TipoConta {
+  CORRENTE
+  POUPANCA
+}
+
+enum StatusConta {
+  ATIVA
+  BLOQUEADA
+  ENCERRADA
+}
+
+enum TipoLancamento {
+  CREDITO
+  DEBITO
+}
+
+enum CategoriaLancamento {
+  SALARIO
+  PIX_RECEBIDO
+  PIX_ENVIADO
+  COMPRA_DEBITO
+  BOLETO
+  TARIFA
+  RENDIMENTO
+  PARCELA_EMPRESTIMO
+}
+
+type Cliente @key(fields: "id") {
+  id: ID!
+  contas(status: StatusConta): [Conta!]!
+  saldoTotalEmContas: Decimal!
+}
+
+type Produto @key(fields: "codigo", resolvable: false) {
+  codigo: ID!
+}
+
+type Query {
+  conta(id: ID!): Conta
+}

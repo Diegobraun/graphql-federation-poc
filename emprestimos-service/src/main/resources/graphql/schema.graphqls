@@ -1,0 +1,100 @@
+extend schema
+  @link(url: "https://specs.apollo.dev/federation/v2.9", import: ["@key", "@external", "@requires"])
+
+scalar Decimal
+scalar Date
+
+"Contrato de empréstimo. Subgraph dono: emprestimos."
+type Emprestimo @key(fields: "id") {
+  id: ID!
+  contrato: String!
+  status: StatusEmprestimo!
+  valorContratado: Decimal!
+  taxaJurosMensal: Decimal!
+  taxaJurosAnual: Decimal!
+  quantidadeParcelas: Int!
+  valorParcela: Decimal!
+  dataContratacao: Date!
+  saldoDevedor: Decimal!
+  parcelasPagas: Int!
+  proximaParcela: Parcela
+  parcelas(status: StatusParcela): [Parcela!]!
+  cliente: Cliente!
+  contaDebito: Conta!
+  produto: Produto!
+}
+
+type Parcela {
+  numero: Int!
+  vencimento: Date!
+  valor: Decimal!
+  amortizacao: Decimal!
+  juros: Decimal!
+  status: StatusParcela!
+  dataPagamento: Date
+  diasEmAtraso: Int!
+}
+
+enum StatusEmprestimo {
+  ATIVO
+  QUITADO
+  INADIMPLENTE
+}
+
+enum StatusParcela {
+  PAGA
+  EM_ABERTO
+  ATRASADA
+}
+
+type OfertaCredito {
+  limitePreAprovado: Decimal!
+  taxaJurosMensal: Decimal!
+  prazoMaximoMeses: Int!
+  motivo: String!
+  produto: Produto!
+}
+
+type Simulacao {
+  produto: Produto!
+  valorSolicitado: Decimal!
+  quantidadeParcelas: Int!
+  taxaJurosMensal: Decimal!
+  valorParcela: Decimal!
+  totalPago: Decimal!
+  totalJuros: Decimal!
+  cetAnual: Decimal!
+  parcelas: [Parcela!]!
+}
+
+input SimulacaoInput {
+  produtoCodigo: ID!
+  valor: Decimal!
+  quantidadeParcelas: Int!
+}
+
+type Cliente @key(fields: "id") {
+  id: ID!
+  rendaMensal: Decimal! @external
+  scoreCredito: Int! @external
+  emprestimos(status: StatusEmprestimo): [Emprestimo!]!
+  "Oferta pré-aprovada calculada com renda e score vindos do subgraph clientes"
+  ofertaCredito: OfertaCredito! @requires(fields: "rendaMensal scoreCredito")
+  "Percentual da renda mensal comprometido com parcelas de empréstimos ativos"
+  comprometimentoRenda: Decimal! @requires(fields: "rendaMensal")
+}
+
+type Conta @key(fields: "id", resolvable: false) {
+  id: ID!
+}
+
+type Produto @key(fields: "codigo") {
+  codigo: ID!
+  "Somente backoffice"
+  contratosAtivos: Int
+}
+
+type Query {
+  emprestimo(id: ID!): Emprestimo
+  simularEmprestimo(input: SimulacaoInput!): Simulacao!
+}

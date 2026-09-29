@@ -1,0 +1,29 @@
+query HomeApp {
+  me {
+    nome
+    segmento
+    contas {
+      id
+      tipo
+      saldo {
+        disponivel
+      }
+    }
+    emprestimos(status: ATIVO) {
+      id
+      produto {
+        nome
+      }
+      saldoDevedor
+      proximaParcela {
+        numero
+        vencimento
+        valor
+      }
+    }
+    carteira {
+      patrimonioBruto
+      rentabilidadePercentual
+    }
+  }
+}

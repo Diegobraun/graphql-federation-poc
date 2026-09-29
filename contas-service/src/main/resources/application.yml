@@ -1,0 +1,51 @@
+server:
+  port: ${PORT:9102}
+
+spring:
+  application:
+    name: contas-service
+  graphql:
+    http:
+      path: /graphql
+    graphiql:
+      enabled: true
+    schema:
+      printer:
+        enabled: true
+
+poc:
+  seguranca:
+    jwt-secret: ${JWT_SECRET:poc-graphql-federation-segredo-de-desenvolvimento-256}
+  graphql:
+    profundidade-maxima: 12
+    complexidade-maxima: 400
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  tracing:
+    export:
+      enabled: ${TRACING_ENABLED:false}
+    sampling:
+      probability: 1.0
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+  logging:
+    export:
+      otlp:
+        enabled: false
+  otlp:
+    metrics:
+      export:
+        enabled: false
+
+logging:
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "
+  level:
+    org.springframework.graphql: INFO

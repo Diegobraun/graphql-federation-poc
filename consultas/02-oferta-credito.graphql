@@ -1,0 +1,19 @@
+query OfertaCredito {
+  me {
+    nome
+    comprometimentoRenda
+    ofertaCredito {
+      limitePreAprovado
+      taxaJurosMensal
+      prazoMaximoMeses
+      motivo
+      produto {
+        nome
+        tarifas {
+          nome
+          valor
+        }
+      }
+    }
+  }
+}

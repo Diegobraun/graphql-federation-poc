@@ -1,0 +1,23 @@
+query Simulacao($input: SimulacaoInput!) {
+  simularEmprestimo(input: $input) {
+    produto {
+      nome
+      prazoMaximoMeses
+      tarifas {
+        nome
+        valor
+      }
+    }
+    taxaJurosMensal
+    valorParcela
+    totalJuros
+    cetAnual
+    parcelas {
+      numero
+      vencimento
+      valor
+      juros
+      amortizacao
+    }
+  }
+}

@@ -1,0 +1,64 @@
+extend schema
+  @link(url: "https://specs.apollo.dev/federation/v2.9", import: ["@key"])
+
+scalar Decimal
+scalar Date
+
+"Posição de investimento. Subgraph dono: investimentos. Valores marcados a mercado na data de hoje."
+type Investimento @key(fields: "id") {
+  id: ID!
+  tipo: TipoInvestimento!
+  valorAplicado: Decimal!
+  valorAtual: Decimal!
+  rendimentoBruto: Decimal!
+  rentabilidadePercentual: Decimal!
+  aliquotaIR: Decimal!
+  impostoEstimado: Decimal!
+  valorLiquido: Decimal!
+  "Percentual do indexador contratado (ex.: 112 = 112% do CDI)"
+  percentualIndexador: Decimal!
+  dataAplicacao: Date!
+  dataVencimento: Date
+  liquidezDiaria: Boolean!
+  produto: Produto!
+  cliente: Cliente!
+}
+
+enum TipoInvestimento {
+  CDB
+  LCI
+  TESOURO
+  FUNDO
+}
+
+type Carteira {
+  totalAplicado: Decimal!
+  patrimonioBruto: Decimal!
+  rendimentoBruto: Decimal!
+  patrimonioLiquido: Decimal!
+  rentabilidadePercentual: Decimal!
+  quantidadeAtivos: Int!
+  alocacao: [Alocacao!]!
+}
+
+type Alocacao {
+  tipo: TipoInvestimento!
+  valor: Decimal!
+  percentual: Decimal!
+}
+
+type Cliente @key(fields: "id") {
+  id: ID!
+  investimentos(tipo: TipoInvestimento): [Investimento!]!
+  carteira: Carteira!
+}
+
+type Produto @key(fields: "codigo") {
+  codigo: ID!
+  "Somente backoffice"
+  volumeAplicado: Decimal
+}
+
+type Query {
+  investimento(id: ID!): Investimento
+}

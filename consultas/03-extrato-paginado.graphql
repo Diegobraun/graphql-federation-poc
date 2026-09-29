@@ -1,0 +1,27 @@
+query Extrato($contaId: ID!, $after: String) {
+  conta(id: $contaId) {
+    agencia
+    numero
+    titular {
+      nome
+    }
+    produto {
+      nome
+    }
+    extrato(first: 5, after: $after, tipo: DEBITO) {
+      totalCount
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      edges {
+        node {
+          dataHora
+          descricao
+          valor
+          categoria
+        }
+      }
+    }
+  }
+}

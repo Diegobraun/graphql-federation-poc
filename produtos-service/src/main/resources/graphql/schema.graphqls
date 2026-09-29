@@ -1,0 +1,53 @@
+extend schema
+  @link(url: "https://specs.apollo.dev/federation/v2.9", import: ["@key"])
+
+scalar Decimal
+
+"""
+Produto financeiro do catálogo. Fonte da verdade de nome, categoria e condições comerciais.
+Outros subgraphs referenciam o produto apenas pelo `codigo`.
+"""
+type Produto @key(fields: "codigo") {
+  codigo: ID!
+  nome: String!
+  categoria: CategoriaProduto!
+  descricao: String!
+  indexador: Indexador
+  "Taxa de referência: % a.m. para empréstimos, % do indexador para investimentos"
+  taxaReferencia: Decimal
+  prazoMinimoMeses: Int
+  prazoMaximoMeses: Int
+  valorMinimo: Decimal
+  ativo: Boolean!
+  tarifas: [Tarifa!]!
+}
+
+type Tarifa {
+  nome: String!
+  valor: Decimal!
+  periodicidade: Periodicidade!
+}
+
+enum CategoriaProduto {
+  CONTA
+  EMPRESTIMO
+  INVESTIMENTO
+}
+
+enum Indexador {
+  PRE
+  CDI
+  IPCA
+  SELIC
+}
+
+enum Periodicidade {
+  UNICA
+  MENSAL
+  ANUAL
+}
+
+type Query {
+  produtos(categoria: CategoriaProduto, somenteAtivos: Boolean = true): [Produto!]!
+  produto(codigo: ID!): Produto
+}

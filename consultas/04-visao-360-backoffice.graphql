@@ -1,0 +1,41 @@
+query Visao360($filtro: FiltroClientes, $after: String) {
+  clientes(filtro: $filtro, first: 5, after: $after) {
+    totalCount
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    edges {
+      node {
+        id
+        nome
+        segmento
+        rendaMensal
+        endereco {
+          cidade
+          uf
+        }
+        saldoTotalEmContas
+        carteira {
+          patrimonioLiquido
+          alocacao {
+            tipo
+            percentual
+          }
+        }
+        emprestimos {
+          status
+          saldoDevedor
+          produto {
+            nome
+          }
+        }
+        comprometimentoRenda
+        ofertaCredito {
+          limitePreAprovado
+          motivo
+        }
+      }
+    }
+  }
+}

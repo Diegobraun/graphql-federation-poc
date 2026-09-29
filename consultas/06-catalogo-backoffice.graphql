@@ -1,0 +1,10 @@
+query CatalogoComIndicadores {
+  produtos {
+    codigo
+    nome
+    categoria
+    taxaReferencia
+    contratosAtivos
+    volumeAplicado
+  }
+}

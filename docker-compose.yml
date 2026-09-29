@@ -1,0 +1,92 @@
+x-subgraph: &subgraph
+  restart: unless-stopped
+  environment:
+    JWT_SECRET: ${JWT_SECRET:-poc-graphql-federation-segredo-de-desenvolvimento-256}
+    TRACING_ENABLED: "true"
+    OTLP_ENDPOINT: http://jaeger:4318/v1/traces
+    JAVA_TOOL_OPTIONS: -XX:+UseSerialGC -Xss512k
+  depends_on:
+    jaeger:
+      condition: service_started
+
+services:
+  clientes-service:
+    <<: *subgraph
+    build: { context: ., args: { MODULE: clientes-service } }
+    image: poc-federation/clientes-service
+    ports: ["9101:9101"]
+    healthcheck: &healthcheck
+      test: ["CMD", "curl", "-fs", "http://localhost:9101/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  contas-service:
+    <<: *subgraph
+    build: { context: ., args: { MODULE: contas-service } }
+    image: poc-federation/contas-service
+    ports: ["9102:9102"]
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "curl", "-fs", "http://localhost:9102/actuator/health"]
+
+  emprestimos-service:
+    <<: *subgraph
+    build: { context: ., args: { MODULE: emprestimos-service } }
+    image: poc-federation/emprestimos-service
+    ports: ["9103:9103"]
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "curl", "-fs", "http://localhost:9103/actuator/health"]
+
+  investimentos-service:
+    <<: *subgraph
+    build: { context: ., args: { MODULE: investimentos-service } }
+    image: poc-federation/investimentos-service
+    ports: ["9104:9104"]
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "curl", "-fs", "http://localhost:9104/actuator/health"]
+
+  produtos-service:
+    <<: *subgraph
+    build: { context: ., args: { MODULE: produtos-service } }
+    image: poc-federation/produtos-service
+    ports: ["9105:9105"]
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "curl", "-fs", "http://localhost:9105/actuator/health"]
+
+  router:
+    image: ghcr.io/apollographql/router:v2.16.4
+    restart: unless-stopped
+    command:
+      - --config
+      - /dist/config/router.yaml
+      - --supergraph
+      - /dist/schema/supergraph.graphql
+      - --hot-reload
+    environment:
+      APOLLO_TELEMETRY_DISABLED: "true"
+    volumes:
+      - ./router/router.yaml:/dist/config/router.yaml:ro
+      - ./router/rhai:/dist/rhai:ro
+      - ./supergraph/supergraph.graphql:/dist/schema/supergraph.graphql:ro
+    ports:
+      - "4000:4000"
+      - "9090:9090"
+    depends_on:
+      clientes-service: { condition: service_healthy, restart: true }
+      contas-service: { condition: service_healthy, restart: true }
+      emprestimos-service: { condition: service_healthy, restart: true }
+      investimentos-service: { condition: service_healthy, restart: true }
+      produtos-service: { condition: service_healthy, restart: true }
+
+  jaeger:
+    image: jaegertracing/jaeger:2.21.0
+    restart: unless-stopped
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
